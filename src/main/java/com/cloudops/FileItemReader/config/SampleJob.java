@@ -2,6 +2,7 @@ package com.cloudops.FileItemReader.config;
 
 import com.cloudops.FileItemReader.model.StudentCsv;
 import com.cloudops.FileItemReader.model.StudentJson;
+import com.cloudops.FileItemReader.model.StudentXml;
 import com.cloudops.FileItemReader.processor.FirstItemProcessor;
 import com.cloudops.FileItemReader.reader.FirstItemReader;
 import com.cloudops.FileItemReader.writer.FirstItemWriter;
@@ -18,10 +19,12 @@ import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.batch.item.json.JacksonJsonObjectReader;
 import org.springframework.batch.item.json.JsonItemReader;
+import org.springframework.batch.item.xml.StaxEventItemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.io.File;
@@ -54,9 +57,10 @@ public class SampleJob {
 
     private Step firstChunkStep() {
         return new StepBuilder("First Chunk Step",jobRepository)
-                .<StudentJson, StudentJson>chunk(3,platformTransactionManager)
+                .<StudentXml, StudentXml>chunk(3,platformTransactionManager)
                 //.reader(flatFileItemReader())
-                .reader(jsonFileItemReader())
+                //.reader(jsonFileItemReader())
+                .reader(xmlStaxEventItemReader())
                 //.processor(firstItemProcessor)
                 .writer(firstItemWriter)
                 .build();
@@ -91,5 +95,17 @@ public class SampleJob {
         jsonItemReader.setMaxItemCount(9); // maximum 9 objects from the json will be read rest will be ignored
         jsonItemReader.setCurrentItemCount(2); // job will start reading from 2nd object of the json file
         return jsonItemReader;
+    }
+
+    private StaxEventItemReader<StudentXml> xmlStaxEventItemReader(){
+        StaxEventItemReader<StudentXml> xmlReader = new StaxEventItemReader<>();
+        xmlReader.setResource(new FileSystemResource(new File("D:\\Spring Projects\\Spring Batch Projects\\FileItemReader\\src\\main\\java\\input\\students.xml")));
+        xmlReader.setFragmentRootElementName("student");
+
+        /*Reading JSON and mapping it to java object is unmarshalling and reverse is marshalling, here we are doing unmarshalling*/
+        Jaxb2Marshaller jaxb2Marshaller = new Jaxb2Marshaller();
+        jaxb2Marshaller.setClassesToBeBound(StudentXml.class);
+        xmlReader.setUnmarshaller(jaxb2Marshaller);
+        return xmlReader;
     }
 }
